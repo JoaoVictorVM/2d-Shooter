@@ -1,32 +1,48 @@
 /**
  * Premissas:
- * - Etapa 4.1 cobre apenas movimento horizontal (A/D/←/→). Pulo (4.2) e dash (4.3)
- *   entram nas próximas etapas.
- * - A velocidade horizontal é rastreada internamente em px/s e convertida para a
- *   unidade do Matter (px por passo de 1/60s) só na hora de aplicar — o Matter
- *   trabalha em px por step, não px/s.
- * - O corpo tem rotação travada (setFixedRotation) para o personagem não tombar.
+ * - Etapa 4.2 adiciona pulo (W/↑/Space), com coyote time e jump buffer, sem
+ *   double jump. Dash (4.3) entra na próxima etapa.
+ * - Velocidades em px/s são convertidas para a unidade do Matter (px por passo
+ *   de 1/60s) só ao aplicar — o Matter trabalha em px por step.
+ * - Detecção de chão por eventos de colisão: um corpo conta como chão quando seu
+ *   centro está abaixo do centro do player no início do contato (heurística
+ *   suficiente para plataformas; paredes/tetos ficam de fora).
+ * - O corpo tem rotação travada (setFixedRotation) para não tombar.
  */
 import * as Phaser from 'phaser';
 import { GAME, PLAYER_MOVEMENT } from '@/game/config/constants.ts';
 import { TEXTURE } from '@/game/config/assets.ts';
 import { computeHorizontalVelocity } from '@/game/utils/movement.ts';
+import { shouldJump } from '@/game/utils/jump.ts';
+
+type MatterBody = MatterJS.BodyType;
 
 interface MovementKeys {
   left: Phaser.Input.Keyboard.Key;
   right: Phaser.Input.Keyboard.Key;
   leftArrow: Phaser.Input.Keyboard.Key;
   rightArrow: Phaser.Input.Keyboard.Key;
+  jump: Phaser.Input.Keyboard.Key;
+  jumpUp: Phaser.Input.Keyboard.Key;
+  jumpSpace: Phaser.Input.Keyboard.Key;
 }
 
 export class Player {
   readonly sprite: Phaser.Physics.Matter.Sprite;
+  private readonly scene: Phaser.Scene;
+  private readonly body: MatterBody;
   private readonly keys: MovementKeys;
+
   private horizontalVelocity = 0;
+  private readonly groundContacts = new Set<number>();
+  private lastGroundedTime = -Infinity;
+  private lastJumpPressedTime = -Infinity;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
+    this.scene = scene;
     this.sprite = scene.matter.add.sprite(x, y, TEXTURE.PLAYER);
     this.sprite.setFixedRotation();
+    this.body = this.sprite.body as MatterBody;
 
     const keyboard = scene.input.keyboard;
     if (!keyboard) {
@@ -38,10 +54,21 @@ export class Player {
       right: codes.D,
       leftArrow: codes.LEFT,
       rightArrow: codes.RIGHT,
+      jump: codes.W,
+      jumpUp: codes.UP,
+      jumpSpace: codes.SPACE,
     }) as MovementKeys;
+
+    scene.matter.world.on('collisionstart', this.handleCollisionStart, this);
+    scene.matter.world.on('collisionend', this.handleCollisionEnd, this);
   }
 
   update(deltaMs: number) {
+    this.updateHorizontalMovement(deltaMs);
+    this.updateJump();
+  }
+
+  private updateHorizontalMovement(deltaMs: number) {
     const deltaSeconds = deltaMs / 1000;
     const inputDirection = this.readHorizontalInput();
 
@@ -63,9 +90,72 @@ export class Player {
     }
   }
 
+  private updateJump() {
+    const now = this.scene.time.now;
+
+    if (this.isJumpJustPressed()) {
+      this.lastJumpPressedTime = now;
+    }
+    if (this.isOnGround()) {
+      this.lastGroundedTime = now;
+    }
+
+    const jump = shouldJump({
+      now,
+      lastGroundedTime: this.lastGroundedTime,
+      lastJumpPressedTime: this.lastJumpPressedTime,
+      coyoteTimeMs: PLAYER_MOVEMENT.COYOTE_TIME_MS,
+      jumpBufferMs: PLAYER_MOVEMENT.JUMP_BUFFER_MS,
+    });
+
+    if (jump) {
+      this.sprite.setVelocityY(PLAYER_MOVEMENT.JUMP_FORCE / GAME.TARGET_FPS);
+      // Consome coyote e buffer para impedir double jump no mesmo voo.
+      this.lastGroundedTime = -Infinity;
+      this.lastJumpPressedTime = -Infinity;
+    }
+  }
+
   private readHorizontalInput(): number {
     const left = this.keys.left.isDown || this.keys.leftArrow.isDown;
     const right = this.keys.right.isDown || this.keys.rightArrow.isDown;
     return (right ? 1 : 0) - (left ? 1 : 0);
+  }
+
+  private isJumpJustPressed(): boolean {
+    const justDown = Phaser.Input.Keyboard.JustDown;
+    return justDown(this.keys.jump) || justDown(this.keys.jumpUp) || justDown(this.keys.jumpSpace);
+  }
+
+  private isOnGround(): boolean {
+    return this.groundContacts.size > 0;
+  }
+
+  private handleCollisionStart(event: Phaser.Physics.Matter.Events.CollisionStartEvent) {
+    for (const pair of event.pairs) {
+      const other = this.resolveOtherBody(pair.bodyA, pair.bodyB);
+      if (other && other.position.y > this.body.position.y) {
+        this.groundContacts.add(other.id);
+      }
+    }
+  }
+
+  private handleCollisionEnd(event: Phaser.Physics.Matter.Events.CollisionEndEvent) {
+    for (const pair of event.pairs) {
+      const other = this.resolveOtherBody(pair.bodyA, pair.bodyB);
+      if (other) {
+        this.groundContacts.delete(other.id);
+      }
+    }
+  }
+
+  private resolveOtherBody(bodyA: MatterBody, bodyB: MatterBody): MatterBody | null {
+    if (bodyA === this.body) {
+      return bodyB;
+    }
+    if (bodyB === this.body) {
+      return bodyA;
+    }
+    return null;
   }
 }
