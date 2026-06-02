@@ -5,11 +5,12 @@
  *   sob verbatimModuleSyntax.
  * - Câmera fixa 1280x720 (RF09): Scale.FIT mantém a proporção ao redimensionar
  *   a janela sem alterar a resolução lógica do jogo.
- * - Cenas (Boot/Preload/...) são registradas em etapas posteriores; aqui o array
- *   fica vazio de propósito — esta etapa entrega apenas a montagem do Phaser.
+ * - A ordem do array de cenas define a primeira a rodar: Boot encadeia para Preload.
  */
 import * as Phaser from 'phaser';
 import { GAME } from './config/constants.ts';
+import { BootScene } from './scenes/BootScene.ts';
+import { PreloadScene } from './scenes/PreloadScene.ts';
 
 export function createGame(parent: HTMLElement): Phaser.Game {
   const config: Phaser.Types.Core.GameConfig = {
@@ -22,7 +23,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [],
+    scene: [BootScene, PreloadScene],
   };
 
   return new Phaser.Game(config);
