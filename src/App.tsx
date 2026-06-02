@@ -2,6 +2,7 @@ import { useGameStore } from './store/index.ts';
 import { GameCanvas } from './components/GameCanvas.tsx';
 import { MenuScreen } from './components/screens/MenuScreen.tsx';
 import { WeaponSelectScreen } from './components/screens/WeaponSelectScreen.tsx';
+import { GameOverScreen } from './components/screens/GameOverScreen.tsx';
 
 function App() {
   const currentScreen = useGameStore((state) => state.currentScreen);
@@ -14,6 +15,8 @@ function App() {
       return <WeaponSelectScreen />;
     case 'game':
       return <GameCanvas />;
+    case 'gameOver':
+      return <GameOverScreen />;
     default:
       // Fallback temporário para telas ainda não implementadas (etapas 3.2–3.4).
       return (
