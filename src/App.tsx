@@ -1,6 +1,7 @@
 import { useGameStore } from './store/index.ts';
 import { GameCanvas } from './components/GameCanvas.tsx';
 import { MenuScreen } from './components/screens/MenuScreen.tsx';
+import { WeaponSelectScreen } from './components/screens/WeaponSelectScreen.tsx';
 
 function App() {
   const currentScreen = useGameStore((state) => state.currentScreen);
@@ -9,6 +10,8 @@ function App() {
   switch (currentScreen) {
     case 'menu':
       return <MenuScreen />;
+    case 'weaponSelect':
+      return <WeaponSelectScreen />;
     case 'game':
       return <GameCanvas />;
     default:

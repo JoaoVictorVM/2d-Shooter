@@ -60,3 +60,85 @@
   border-color: #4ade80;
   color: #4ade80;
 }
+
+.weapon-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  max-width: 760px;
+}
+
+.weapon-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 240px;
+  padding: 18px 20px;
+  font-family: inherit;
+  text-align: left;
+  color: #e6e6e6;
+  background: #1b2733;
+  border: 2px solid #2f4256;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    transform 0.08s ease;
+}
+
+.weapon-card:hover {
+  border-color: #4ade80;
+}
+
+.weapon-card:active {
+  transform: scale(0.98);
+}
+
+.weapon-card--active {
+  border-color: #4ade80;
+  box-shadow: 0 0 16px rgba(74, 222, 128, 0.25);
+}
+
+.weapon-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.weapon-card__name {
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.weapon-card__badge {
+  padding: 2px 8px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #0b0c10;
+  background: #4ade80;
+  border-radius: 4px;
+}
+
+.weapon-card__stats {
+  display: flex;
+  gap: 18px;
+  margin: 0;
+}
+
+.weapon-card__stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weapon-card__stats dt {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #8b9bb4;
+}
+
+.weapon-card__stats dd {
+  margin: 0;
+  font-size: 16px;
+}
