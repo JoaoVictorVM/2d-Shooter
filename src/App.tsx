@@ -1,7 +1,9 @@
+import { GameCanvas } from './components/GameCanvas.tsx';
+
 function App() {
   return (
     <div className="app">
-      <h1>2D Shooter</h1>
+      <GameCanvas />
     </div>
   );
 }
