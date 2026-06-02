@@ -1,7 +1,8 @@
 /**
  * Premissas:
- * - Etapa 4.2 adiciona pulo (W/↑/Space), com coyote time e jump buffer, sem
- *   double jump. Dash (4.3) entra na próxima etapa.
+ * - Etapa 4.3 adiciona dash (Shift): impulso horizontal de DASH.DISTANCE em
+ *   DASH.DURATION_MS, com cooldown e janela de invulnerabilidade. Só no chão
+ *   (sem dash aéreo no MVP). O ghost trail visual é juice e entra na etapa 4.4.
  * - Velocidades em px/s são convertidas para a unidade do Matter (px por passo
  *   de 1/60s) só ao aplicar — o Matter trabalha em px por step.
  * - Detecção de chão por eventos de colisão: um corpo conta como chão quando seu
@@ -10,12 +11,16 @@
  * - O corpo tem rotação travada (setFixedRotation) para não tombar.
  */
 import * as Phaser from 'phaser';
-import { GAME, PLAYER_MOVEMENT } from '@/game/config/constants.ts';
+import { GAME, PLAYER_MOVEMENT, DASH } from '@/game/config/constants.ts';
 import { TEXTURE } from '@/game/config/assets.ts';
 import { computeHorizontalVelocity } from '@/game/utils/movement.ts';
 import { shouldJump } from '@/game/utils/jump.ts';
+import { canStartDash, isWithinWindow } from '@/game/utils/dash.ts';
 
 type MatterBody = MatterJS.BodyType;
+
+// Velocidade constante do dash: cobrir DASH.DISTANCE px em DASH.DURATION_MS.
+const DASH_SPEED_PX_S = DASH.DISTANCE / (DASH.DURATION_MS / 1000);
 
 interface MovementKeys {
   left: Phaser.Input.Keyboard.Key;
@@ -25,6 +30,7 @@ interface MovementKeys {
   jump: Phaser.Input.Keyboard.Key;
   jumpUp: Phaser.Input.Keyboard.Key;
   jumpSpace: Phaser.Input.Keyboard.Key;
+  dash: Phaser.Input.Keyboard.Key;
 }
 
 export class Player {
@@ -34,9 +40,13 @@ export class Player {
   private readonly keys: MovementKeys;
 
   private horizontalVelocity = 0;
+  private facing: -1 | 1 = 1;
   private readonly groundContacts = new Set<number>();
   private lastGroundedTime = -Infinity;
   private lastJumpPressedTime = -Infinity;
+  private dashStartTime = -Infinity;
+  private dashDirection: -1 | 1 = 1;
+  private lastDashTime = -Infinity;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
@@ -57,15 +67,57 @@ export class Player {
       jump: codes.W,
       jumpUp: codes.UP,
       jumpSpace: codes.SPACE,
+      dash: codes.SHIFT,
     }) as MovementKeys;
 
     scene.matter.world.on('collisionstart', this.handleCollisionStart, this);
     scene.matter.world.on('collisionend', this.handleCollisionEnd, this);
   }
 
+  get isInvincible(): boolean {
+    return isWithinWindow(this.scene.time.now, this.dashStartTime, DASH.INVINCIBLE_DURATION_MS);
+  }
+
   update(deltaMs: number) {
-    this.updateHorizontalMovement(deltaMs);
-    this.updateJump();
+    const now = this.scene.time.now;
+
+    this.handleDashInput(now);
+
+    if (this.isDashing(now)) {
+      this.applyDashVelocity();
+    } else {
+      this.updateHorizontalMovement(deltaMs);
+    }
+
+    this.updateJump(now);
+  }
+
+  private handleDashInput(now: number) {
+    if (!Phaser.Input.Keyboard.JustDown(this.keys.dash) || this.isDashing(now)) {
+      return;
+    }
+    const available = canStartDash({
+      now,
+      lastDashTime: this.lastDashTime,
+      cooldownMs: DASH.COOLDOWN_MS,
+      isOnGround: this.isOnGround(),
+    });
+    if (!available) {
+      return;
+    }
+    this.dashDirection = (this.readHorizontalInput() || this.facing) < 0 ? -1 : 1;
+    this.dashStartTime = now;
+    this.lastDashTime = now;
+  }
+
+  private isDashing(now: number): boolean {
+    return isWithinWindow(now, this.dashStartTime, DASH.DURATION_MS);
+  }
+
+  private applyDashVelocity() {
+    this.horizontalVelocity = DASH_SPEED_PX_S * this.dashDirection;
+    this.sprite.setVelocityX(this.horizontalVelocity / GAME.TARGET_FPS);
+    this.sprite.setFlipX(this.dashDirection < 0);
   }
 
   private updateHorizontalMovement(deltaMs: number) {
@@ -86,13 +138,12 @@ export class Player {
     this.sprite.setVelocityX(this.horizontalVelocity / GAME.TARGET_FPS);
 
     if (inputDirection !== 0) {
+      this.facing = inputDirection < 0 ? -1 : 1;
       this.sprite.setFlipX(inputDirection < 0);
     }
   }
 
-  private updateJump() {
-    const now = this.scene.time.now;
-
+  private updateJump(now: number) {
     if (this.isJumpJustPressed()) {
       this.lastJumpPressedTime = now;
     }
