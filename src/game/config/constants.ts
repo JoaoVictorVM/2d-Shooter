@@ -15,6 +15,11 @@ export const GAME = {
   BACKGROUND_COLOR: '#0b0c10',
 } as const;
 
+export const PHYSICS = {
+  // tunável: multiplicador de gravidade do Matter (Phaser usa y=1 por padrão).
+  GRAVITY_Y: 1,
+} as const;
+
 export const PLAYER_MOVEMENT = {
   MAX_SPEED: 300,
   JUMP_FORCE: -550,

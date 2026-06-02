@@ -8,9 +8,10 @@
  * - A ordem do array de cenas define a primeira a rodar: Boot encadeia para Preload.
  */
 import * as Phaser from 'phaser';
-import { GAME } from './config/constants.ts';
+import { GAME, PHYSICS } from './config/constants.ts';
 import { BootScene } from './scenes/BootScene.ts';
 import { PreloadScene } from './scenes/PreloadScene.ts';
+import { MainGameScene } from './scenes/MainGameScene.ts';
 
 export function createGame(parent: HTMLElement): Phaser.Game {
   const config: Phaser.Types.Core.GameConfig = {
@@ -23,7 +24,14 @@ export function createGame(parent: HTMLElement): Phaser.Game {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [BootScene, PreloadScene],
+    physics: {
+      default: 'matter',
+      matter: {
+        gravity: { x: 0, y: PHYSICS.GRAVITY_Y },
+        debug: false,
+      },
+    },
+    scene: [BootScene, PreloadScene, MainGameScene],
   };
 
   return new Phaser.Game(config);
