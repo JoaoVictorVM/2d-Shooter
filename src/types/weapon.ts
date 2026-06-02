@@ -29,3 +29,10 @@ export interface WeaponConfig {
   recoilAngle: number;
   sfx: WeaponSfx;
 }
+
+export interface WeaponRuntimeState {
+  magazineAmmo: number;
+  reserveAmmo: number;
+  isReloading: boolean;
+  reloadProgress: number;
+}
