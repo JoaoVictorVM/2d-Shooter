@@ -106,6 +106,10 @@ export class Player {
     return this.weapon.getMuzzlePosition();
   }
 
+  triggerShootFeedback(recoilAngleDegrees: number) {
+    this.weapon.triggerShootFeedback(recoilAngleDegrees);
+  }
+
   update(deltaMs: number) {
     const now = this.scene.time.now;
 

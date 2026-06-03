@@ -13,3 +13,7 @@ export function offsetByAngle(x: number, y: number, angle: number, distance: num
   const offset = velocityFromAngle(angle, distance);
   return { x: x + offset.x, y: y + offset.y };
 }
+
+export function degreesToRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}

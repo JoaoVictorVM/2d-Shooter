@@ -3,14 +3,17 @@ import { SCENE } from '@/game/config/scenes.ts';
 import { GAME, POOL } from '@/game/config/constants.ts';
 import { TEXTURE, PLACEHOLDER_TEXTURES } from '@/game/config/assets.ts';
 import { WEAPONS } from '@/game/config/weapons.ts';
+import { HIT_SPARK } from '@/game/config/constants.ts';
 import { Player } from '@/game/entities/Player.ts';
 import { Projectile } from '@/game/entities/Projectile.ts';
 import { ObjectPool } from '@/game/utils/ObjectPool.ts';
+import { createSparkEmitter } from '@/game/utils/ParticleFactory.ts';
 import { useGameStore } from '@/store/index.ts';
 
 export class MainGameScene extends Phaser.Scene {
   private player!: Player;
   private projectiles!: ObjectPool<Projectile>;
+  private hitSparks!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor() {
     super(SCENE.MAIN_GAME);
@@ -21,8 +24,14 @@ export class MainGameScene extends Phaser.Scene {
     // Spawn no centro do mapa, acima do chão (RF09).
     this.player = new Player(this, GAME.WIDTH / 2, GAME.HEIGHT / 2);
     this.projectiles = new ObjectPool(POOL.PROJECTILES, () => new Projectile(this));
+    this.hitSparks = createSparkEmitter(this);
 
     this.input.on('pointerdown', this.handlePointerDown, this);
+  }
+
+  // Partículas de impacto ao acertar um inimigo (acionado na colisão do Sprint 7).
+  emitHitSparks(x: number, y: number) {
+    this.hitSparks.explode(HIT_SPARK.COUNT, x, y);
   }
 
   update(_time: number, delta: number) {
@@ -46,8 +55,10 @@ export class MainGameScene extends Phaser.Scene {
       return;
     }
     const weaponId = useGameStore.getState().selectedWeapon;
+    const weapon = WEAPONS[weaponId];
     const muzzle = this.player.getMuzzlePosition();
-    projectile.fire(muzzle.x, muzzle.y, this.player.aimAngle, WEAPONS[weaponId].projectile);
+    projectile.fire(muzzle.x, muzzle.y, this.player.aimAngle, weapon.projectile);
+    this.player.triggerShootFeedback(weapon.recoilAngle);
   }
 
   private createTemporaryGround() {

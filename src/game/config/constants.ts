@@ -93,6 +93,22 @@ export const WEAPON_DISPLAY = {
   MUZZLE_LENGTH: 22,
 } as const;
 
+export const WEAPON_FX = {
+  // tunável: duração do flash do cano ao disparar.
+  MUZZLE_FLASH_DURATION_MS: 60,
+} as const;
+
+export const HIT_SPARK = {
+  // tunável: partículas de impacto ao acertar um inimigo (acionadas no Sprint 7).
+  LIFESPAN_MS: 300,
+  SPEED_MIN: 80,
+  SPEED_MAX: 220,
+  COUNT: 6,
+  SCALE_START: 0.8,
+  SCALE_END: 0,
+  MAX_PARTICLES: 30,
+} as const;
+
 export const WAVE = {
   START_DELAY_MS: 3000,
   ANNOUNCE_DURATION_MS: 2000,

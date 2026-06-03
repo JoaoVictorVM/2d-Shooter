@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { velocityFromAngle, offsetByAngle } from './MathUtils.ts';
+import { velocityFromAngle, offsetByAngle, degreesToRadians } from './MathUtils.ts';
 
 describe('velocityFromAngle', () => {
   it('points fully along +x at angle 0', () => {
@@ -43,5 +43,19 @@ describe('offsetByAngle', () => {
     const p = offsetByAngle(100, 50, 1.1, 0);
     expect(p.x).toBeCloseTo(100);
     expect(p.y).toBeCloseTo(50);
+  });
+});
+
+describe('degreesToRadians', () => {
+  it('converts 180 degrees to PI', () => {
+    expect(degreesToRadians(180)).toBeCloseTo(Math.PI);
+  });
+
+  it('converts 90 degrees to half PI', () => {
+    expect(degreesToRadians(90)).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('keeps zero at zero', () => {
+    expect(degreesToRadians(0)).toBe(0);
   });
 });
