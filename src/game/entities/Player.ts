@@ -20,7 +20,7 @@ import {
   DASH_TRAIL,
 } from '@/game/config/constants.ts';
 import { TEXTURE } from '@/game/config/assets.ts';
-import { computeHorizontalVelocity } from '@/game/utils/movement.ts';
+import { computeHorizontalVelocity, clamp } from '@/game/utils/movement.ts';
 import { shouldJump } from '@/game/utils/jump.ts';
 import { canStartDash, isWithinWindow } from '@/game/utils/dash.ts';
 import { createDustEmitter } from '@/game/utils/ParticleFactory.ts';
@@ -57,6 +57,7 @@ export class Player {
   private dashDirection: -1 | 1 = 1;
   private lastDashTime = -Infinity;
   private lastGhostTime = -Infinity;
+  private wasDashing = false;
   private wasOnGround = false;
   private previousInputDirection = 0;
 
@@ -102,12 +103,23 @@ export class Player {
       this.applyDashVelocity();
       this.updateDashTrail(now);
     } else {
+      // Ao terminar o dash, a velocidade ainda é a do dash (>> MAX_SPEED); sem
+      // isto o atrito levaria ~1,4s para parar. Limitamos ao teto de corrida para
+      // o personagem parar rápido (ou seguir correndo se houver input).
+      if (this.wasDashing) {
+        this.horizontalVelocity = clamp(
+          this.horizontalVelocity,
+          -PLAYER_MOVEMENT.MAX_SPEED,
+          PLAYER_MOVEMENT.MAX_SPEED
+        );
+      }
       this.updateHorizontalMovement(deltaMs, inputDirection);
     }
 
     this.updateJump(now);
     this.updateGroundEffects(inputDirection, dashing);
 
+    this.wasDashing = dashing;
     this.wasOnGround = this.isOnGround();
     this.previousInputDirection = inputDirection;
   }

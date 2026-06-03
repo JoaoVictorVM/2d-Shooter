@@ -4,7 +4,7 @@ export interface HorizontalMovementConfig {
   friction: number;
 }
 
-const clamp = (value: number, min: number, max: number): number =>
+export const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
 /**
