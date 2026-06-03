@@ -12,10 +12,16 @@ export function GameCanvas() {
     }
 
     gameRef.current = createGame(containerRef.current);
+    if (import.meta.env.DEV) {
+      window.__GAME__ = gameRef.current;
+    }
 
     return () => {
       gameRef.current?.destroy(true);
       gameRef.current = null;
+      if (import.meta.env.DEV) {
+        window.__GAME__ = undefined;
+      }
     };
   }, []);
 

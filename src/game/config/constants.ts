@@ -89,6 +89,8 @@ export const WEAPON_DISPLAY = {
   PIVOT_ORIGIN_X: 0.2,
   PIVOT_ORIGIN_Y: 0.5,
   DEPTH: 1,
+  // tunável: distância do ombro até a ponta do cano (spawn do projétil).
+  MUZZLE_LENGTH: 22,
 } as const;
 
 export const WAVE = {

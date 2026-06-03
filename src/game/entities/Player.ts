@@ -26,6 +26,7 @@ import { shouldJump } from '@/game/utils/jump.ts';
 import { canStartDash, isWithinWindow } from '@/game/utils/dash.ts';
 import { createDustEmitter } from '@/game/utils/ParticleFactory.ts';
 import { computeAim } from '@/game/utils/aim.ts';
+import type { Vector2 } from '@/game/utils/MathUtils.ts';
 import { Weapon } from '@/game/entities/Weapon.ts';
 
 type MatterBody = MatterJS.BodyType;
@@ -95,6 +96,14 @@ export class Player {
 
   get isInvincible(): boolean {
     return isWithinWindow(this.scene.time.now, this.dashStartTime, DASH.INVINCIBLE_DURATION_MS);
+  }
+
+  get aimAngle(): number {
+    return this.weapon.angle;
+  }
+
+  getMuzzlePosition(): Vector2 {
+    return this.weapon.getMuzzlePosition();
   }
 
   update(deltaMs: number) {

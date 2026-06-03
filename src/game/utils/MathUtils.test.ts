@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { velocityFromAngle } from './MathUtils.ts';
+import { velocityFromAngle, offsetByAngle } from './MathUtils.ts';
 
 describe('velocityFromAngle', () => {
   it('points fully along +x at angle 0', () => {
@@ -23,5 +23,25 @@ describe('velocityFromAngle', () => {
   it('preserves the speed magnitude', () => {
     const v = velocityFromAngle(1.234, 500);
     expect(Math.hypot(v.x, v.y)).toBeCloseTo(500);
+  });
+});
+
+describe('offsetByAngle', () => {
+  it('offsets along +x for angle 0', () => {
+    const p = offsetByAngle(100, 50, 0, 20);
+    expect(p.x).toBeCloseTo(120);
+    expect(p.y).toBeCloseTo(50);
+  });
+
+  it('offsets downward for +90 degrees', () => {
+    const p = offsetByAngle(100, 50, Math.PI / 2, 20);
+    expect(p.x).toBeCloseTo(100);
+    expect(p.y).toBeCloseTo(70);
+  });
+
+  it('keeps the point at the origin for zero distance', () => {
+    const p = offsetByAngle(100, 50, 1.1, 0);
+    expect(p.x).toBeCloseTo(100);
+    expect(p.y).toBeCloseTo(50);
   });
 });
