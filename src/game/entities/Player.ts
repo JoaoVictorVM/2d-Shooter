@@ -1,8 +1,8 @@
 /**
  * Premissas:
- * - Etapa 4.3 adiciona dash (Shift): impulso horizontal de DASH.DISTANCE em
- *   DASH.DURATION_MS, com cooldown e janela de invulnerabilidade. Só no chão
- *   (sem dash aéreo no MVP). O ghost trail visual é juice e entra na etapa 4.4.
+ * - Etapa 4.4 adiciona o game feel do movimento (visual): squash ao aterrissar,
+ *   stretch de antecipação ao pular, poeira ao aterrissar/iniciar corrida/pular
+ *   e ghost trail durante o dash. Nenhuma regra de gameplay muda aqui.
  * - Velocidades em px/s são convertidas para a unidade do Matter (px por passo
  *   de 1/60s) só ao aplicar — o Matter trabalha em px por step.
  * - Detecção de chão por eventos de colisão: um corpo conta como chão quando seu
@@ -11,11 +11,19 @@
  * - O corpo tem rotação travada (setFixedRotation) para não tombar.
  */
 import * as Phaser from 'phaser';
-import { GAME, PLAYER_MOVEMENT, DASH } from '@/game/config/constants.ts';
+import {
+  GAME,
+  PLAYER_MOVEMENT,
+  DASH,
+  GAME_FEEL,
+  DUST_PARTICLE,
+  DASH_TRAIL,
+} from '@/game/config/constants.ts';
 import { TEXTURE } from '@/game/config/assets.ts';
 import { computeHorizontalVelocity } from '@/game/utils/movement.ts';
 import { shouldJump } from '@/game/utils/jump.ts';
 import { canStartDash, isWithinWindow } from '@/game/utils/dash.ts';
+import { createDustEmitter } from '@/game/utils/ParticleFactory.ts';
 
 type MatterBody = MatterJS.BodyType;
 
@@ -38,6 +46,7 @@ export class Player {
   private readonly scene: Phaser.Scene;
   private readonly body: MatterBody;
   private readonly keys: MovementKeys;
+  private readonly dustEmitter: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private horizontalVelocity = 0;
   private facing: -1 | 1 = 1;
@@ -47,12 +56,16 @@ export class Player {
   private dashStartTime = -Infinity;
   private dashDirection: -1 | 1 = 1;
   private lastDashTime = -Infinity;
+  private lastGhostTime = -Infinity;
+  private wasOnGround = false;
+  private previousInputDirection = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
     this.sprite = scene.matter.add.sprite(x, y, TEXTURE.PLAYER);
     this.sprite.setFixedRotation();
     this.body = this.sprite.body as MatterBody;
+    this.dustEmitter = createDustEmitter(scene);
 
     const keyboard = scene.input.keyboard;
     if (!keyboard) {
@@ -80,16 +93,23 @@ export class Player {
 
   update(deltaMs: number) {
     const now = this.scene.time.now;
+    const inputDirection = this.readHorizontalInput();
 
     this.handleDashInput(now);
+    const dashing = this.isDashing(now);
 
-    if (this.isDashing(now)) {
+    if (dashing) {
       this.applyDashVelocity();
+      this.updateDashTrail(now);
     } else {
-      this.updateHorizontalMovement(deltaMs);
+      this.updateHorizontalMovement(deltaMs, inputDirection);
     }
 
     this.updateJump(now);
+    this.updateGroundEffects(inputDirection, dashing);
+
+    this.wasOnGround = this.isOnGround();
+    this.previousInputDirection = inputDirection;
   }
 
   private handleDashInput(now: number) {
@@ -108,6 +128,7 @@ export class Player {
     this.dashDirection = (this.readHorizontalInput() || this.facing) < 0 ? -1 : 1;
     this.dashStartTime = now;
     this.lastDashTime = now;
+    this.lastGhostTime = -Infinity;
   }
 
   private isDashing(now: number): boolean {
@@ -120,9 +141,30 @@ export class Player {
     this.sprite.setFlipX(this.dashDirection < 0);
   }
 
-  private updateHorizontalMovement(deltaMs: number) {
+  private updateDashTrail(now: number) {
+    const interval = DASH.DURATION_MS / DASH.TRAIL_GHOST_COUNT;
+    if (now - this.lastGhostTime < interval) {
+      return;
+    }
+    this.lastGhostTime = now;
+    this.spawnGhost();
+  }
+
+  private spawnGhost() {
+    const ghost = this.scene.add
+      .image(this.sprite.x, this.sprite.y, TEXTURE.PLAYER)
+      .setFlipX(this.sprite.flipX)
+      .setAlpha(DASH_TRAIL.GHOST_ALPHA);
+    this.scene.tweens.add({
+      targets: ghost,
+      alpha: 0,
+      duration: DASH_TRAIL.GHOST_FADE_MS,
+      onComplete: () => ghost.destroy(),
+    });
+  }
+
+  private updateHorizontalMovement(deltaMs: number, inputDirection: number) {
     const deltaSeconds = deltaMs / 1000;
-    const inputDirection = this.readHorizontalInput();
 
     this.horizontalVelocity = computeHorizontalVelocity(
       this.horizontalVelocity,
@@ -164,7 +206,48 @@ export class Player {
       // Consome coyote e buffer para impedir double jump no mesmo voo.
       this.lastGroundedTime = -Infinity;
       this.lastJumpPressedTime = -Infinity;
+      this.onJump();
     }
+  }
+
+  private updateGroundEffects(inputDirection: number, dashing: boolean) {
+    const onGround = this.isOnGround();
+
+    if (!this.wasOnGround && onGround) {
+      this.onLand();
+    }
+
+    const startedRunning = onGround && this.previousInputDirection === 0 && inputDirection !== 0;
+    if (!dashing && startedRunning) {
+      this.emitDust(DUST_PARTICLE.RUN_COUNT);
+    }
+  }
+
+  private onJump() {
+    this.playScalePop(GAME_FEEL.JUMP_STRETCH_SCALE_X, GAME_FEEL.JUMP_STRETCH_SCALE_Y, GAME_FEEL.JUMP_STRETCH_DURATION_MS);
+    this.emitDust(DUST_PARTICLE.RUN_COUNT);
+  }
+
+  private onLand() {
+    this.playScalePop(GAME_FEEL.LAND_SQUASH_SCALE_X, GAME_FEEL.LAND_SQUASH_SCALE_Y, GAME_FEEL.LAND_SQUASH_DURATION_MS);
+    this.emitDust(DUST_PARTICLE.LAND_COUNT);
+  }
+
+  // Aplica a escala alvo instantaneamente e volta a (1,1) — o "pop" do squash/stretch.
+  private playScalePop(scaleX: number, scaleY: number, durationMs: number) {
+    this.sprite.setScale(scaleX, scaleY);
+    this.scene.tweens.add({
+      targets: this.sprite,
+      scaleX: 1,
+      scaleY: 1,
+      duration: durationMs,
+      ease: 'Quad.easeOut',
+    });
+  }
+
+  private emitDust(count: number) {
+    const feetY = this.sprite.y + this.sprite.displayHeight / 2;
+    this.dustEmitter.explode(count, this.sprite.x, feetY);
   }
 
   private readHorizontalInput(): number {

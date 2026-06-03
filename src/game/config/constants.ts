@@ -55,10 +55,32 @@ export const GAME_FEEL = {
   LAND_SQUASH_SCALE_X: 1.2,
   LAND_SQUASH_SCALE_Y: 0.8,
   LAND_SQUASH_DURATION_MS: 80,
+  // tunável: stretch de antecipação ao pular ("squash antes de subir")
+  JUMP_STRETCH_SCALE_X: 0.85,
+  JUMP_STRETCH_SCALE_Y: 1.15,
+  JUMP_STRETCH_DURATION_MS: 120,
   WEAPON_RECOIL_DURATION_MS: 50,
   // tunável: intensidade/duração do screen shake ao receber dano (RF01/RF09)
   DAMAGE_SHAKE_INTENSITY: 0.008,
   DAMAGE_SHAKE_DURATION_MS: 120,
+} as const;
+
+export const DUST_PARTICLE = {
+  // tunável: aparência das partículas de poeira (sem valores no PRD).
+  LIFESPAN_MS: 400,
+  SPEED_MIN: 30,
+  SPEED_MAX: 90,
+  SCALE_START: 1,
+  SCALE_END: 0,
+  ALPHA_START: 0.8,
+  LAND_COUNT: 8,
+  RUN_COUNT: 2,
+  MAX_PARTICLES: 24,
+} as const;
+
+export const DASH_TRAIL = {
+  GHOST_ALPHA: 0.4,
+  GHOST_FADE_MS: 180,
 } as const;
 
 export const WAVE = {
