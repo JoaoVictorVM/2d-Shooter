@@ -83,6 +83,14 @@ export const DASH_TRAIL = {
   GHOST_FADE_MS: 180,
 } as const;
 
+export const WEAPON_DISPLAY = {
+  // tunável: posição/pivô da sprite da arma sobreposta ao player (RF02).
+  SHOULDER_OFFSET_Y: -6,
+  PIVOT_ORIGIN_X: 0.2,
+  PIVOT_ORIGIN_Y: 0.5,
+  DEPTH: 1,
+} as const;
+
 export const WAVE = {
   START_DELAY_MS: 3000,
   ANNOUNCE_DURATION_MS: 2000,

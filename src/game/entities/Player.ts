@@ -18,12 +18,15 @@ import {
   GAME_FEEL,
   DUST_PARTICLE,
   DASH_TRAIL,
+  WEAPON_DISPLAY,
 } from '@/game/config/constants.ts';
 import { TEXTURE } from '@/game/config/assets.ts';
 import { computeHorizontalVelocity, clamp } from '@/game/utils/movement.ts';
 import { shouldJump } from '@/game/utils/jump.ts';
 import { canStartDash, isWithinWindow } from '@/game/utils/dash.ts';
 import { createDustEmitter } from '@/game/utils/ParticleFactory.ts';
+import { computeAim } from '@/game/utils/aim.ts';
+import { Weapon } from '@/game/entities/Weapon.ts';
 
 type MatterBody = MatterJS.BodyType;
 
@@ -47,6 +50,7 @@ export class Player {
   private readonly body: MatterBody;
   private readonly keys: MovementKeys;
   private readonly dustEmitter: Phaser.GameObjects.Particles.ParticleEmitter;
+  private readonly weapon: Weapon;
 
   private horizontalVelocity = 0;
   private facing: -1 | 1 = 1;
@@ -67,6 +71,7 @@ export class Player {
     this.sprite.setFixedRotation();
     this.body = this.sprite.body as MatterBody;
     this.dustEmitter = createDustEmitter(scene);
+    this.weapon = new Weapon(scene);
 
     const keyboard = scene.input.keyboard;
     if (!keyboard) {
@@ -94,6 +99,8 @@ export class Player {
 
   update(deltaMs: number) {
     const now = this.scene.time.now;
+
+    this.updateAim();
     const inputDirection = this.readHorizontalInput();
 
     this.handleDashInput(now);
@@ -124,6 +131,17 @@ export class Player {
     this.previousInputDirection = inputDirection;
   }
 
+  // O flip do personagem e a direção que ele encara seguem o mouse (RF02).
+  private updateAim() {
+    const pointer = this.scene.input.activePointer;
+    const shoulderY = this.sprite.y + WEAPON_DISPLAY.SHOULDER_OFFSET_Y;
+    const aim = computeAim(this.sprite.x, shoulderY, pointer.worldX, pointer.worldY);
+
+    this.facing = aim.facingLeft ? -1 : 1;
+    this.sprite.setFlipX(aim.facingLeft);
+    this.weapon.update(this.sprite.x, shoulderY, aim);
+  }
+
   private handleDashInput(now: number) {
     if (!Phaser.Input.Keyboard.JustDown(this.keys.dash) || this.isDashing(now)) {
       return;
@@ -150,7 +168,6 @@ export class Player {
   private applyDashVelocity() {
     this.horizontalVelocity = DASH_SPEED_PX_S * this.dashDirection;
     this.sprite.setVelocityX(this.horizontalVelocity / GAME.TARGET_FPS);
-    this.sprite.setFlipX(this.dashDirection < 0);
   }
 
   private updateDashTrail(now: number) {
@@ -190,11 +207,6 @@ export class Player {
     );
 
     this.sprite.setVelocityX(this.horizontalVelocity / GAME.TARGET_FPS);
-
-    if (inputDirection !== 0) {
-      this.facing = inputDirection < 0 ? -1 : 1;
-      this.sprite.setFlipX(inputDirection < 0);
-    }
   }
 
   private updateJump(now: number) {
