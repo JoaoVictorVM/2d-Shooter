@@ -1,18 +1,22 @@
 /**
  * Premissas:
  * - Classe base abstrata dos inimigos: física Matter + vida + máquina de estado
- *   (idle | chasing | attacking | dying). Comportamentos concretos (Runner 7.2,
- *   Shooter 7.3) e feedback/morte (7.4) são adicionados pelas subclasses/etapas.
- * - Corpo com rotação travada (não tomba). O spawn de inimigos vem com o
- *   WaveSystem (Sprint 8); aqui só existe a entidade.
+ *   (idle | chasing | attacking | dying). Comportamentos concretos são das subclasses.
+ * - Feedback (7.4): hit flash (pisca branco), barra de vida acima (só quando < 100%)
+ *   e morte (congela o corpo, faz fade em DEATH_FADE_MS e se autodestrói).
+ * - Corpo com rotação travada (não tomba). Sangue/score/colisão são da cena.
  */
 import * as Phaser from 'phaser';
-import { GAME } from '@/game/config/constants.ts';
-import { applyDamage, isDefeated } from '@/game/utils/combat.ts';
+import { GAME, ENEMY_FX } from '@/game/config/constants.ts';
+import { applyDamage, isDefeated, healthRatio } from '@/game/utils/combat.ts';
 import type { TextureKey } from '@/game/config/assets.ts';
 import type { EnemyConfig, EnemyState } from '@/types/index.ts';
 
 type MatterBody = MatterJS.BodyType;
+
+const HIT_FLASH_COLOR = 0xffffff;
+const HEALTH_BAR_FILL_COLOR = 0x4ade80;
+const HEALTH_BAR_BG_COLOR = 0x000000;
 
 export abstract class Enemy {
   readonly sprite: Phaser.Physics.Matter.Sprite;
@@ -21,6 +25,9 @@ export abstract class Enemy {
   protected readonly body: MatterBody;
   protected currentHealth: number;
   private currentState: EnemyState = 'idle';
+  private finished = false;
+  private readonly healthBarBg: Phaser.GameObjects.Rectangle;
+  private readonly healthBarFill: Phaser.GameObjects.Rectangle;
 
   constructor(
     scene: Phaser.Scene,
@@ -35,6 +42,17 @@ export abstract class Enemy {
     this.sprite.setFixedRotation();
     this.body = this.sprite.body as MatterBody;
     this.currentHealth = config.health;
+
+    this.healthBarBg = scene.add
+      .rectangle(x, y, ENEMY_FX.HEALTH_BAR_WIDTH, ENEMY_FX.HEALTH_BAR_HEIGHT, HEALTH_BAR_BG_COLOR, 0.6)
+      .setOrigin(0, 0.5)
+      .setDepth(ENEMY_FX.HEALTH_BAR_DEPTH)
+      .setVisible(false);
+    this.healthBarFill = scene.add
+      .rectangle(x, y, ENEMY_FX.HEALTH_BAR_WIDTH, ENEMY_FX.HEALTH_BAR_HEIGHT, HEALTH_BAR_FILL_COLOR)
+      .setOrigin(0, 0.5)
+      .setDepth(ENEMY_FX.HEALTH_BAR_DEPTH)
+      .setVisible(false);
   }
 
   get state(): EnemyState {
@@ -43,6 +61,10 @@ export abstract class Enemy {
 
   get isDead(): boolean {
     return this.currentState === 'dying';
+  }
+
+  get isFinished(): boolean {
+    return this.finished;
   }
 
   get scoreValue(): number {
@@ -54,12 +76,14 @@ export abstract class Enemy {
       return;
     }
     this.currentHealth = applyDamage(this.currentHealth, amount);
+    this.flashHit();
     if (isDefeated(this.currentHealth)) {
-      this.setState('dying');
+      this.die();
     }
   }
 
   update(delta: number, targetX: number, targetY: number) {
+    this.updateHealthBar();
     if (this.isDead) {
       return;
     }
@@ -68,13 +92,14 @@ export abstract class Enemy {
 
   destroy() {
     this.sprite.destroy();
+    this.healthBarBg.destroy();
+    this.healthBarFill.destroy();
   }
 
   protected setState(state: EnemyState) {
     this.currentState = state;
   }
 
-  // Movimento horizontal em px/s convertido para a unidade do Matter (px por step).
   protected moveHorizontally(direction: number, speed: number) {
     this.sprite.setVelocityX((direction * speed) / GAME.TARGET_FPS);
     if (direction !== 0) {
@@ -86,6 +111,48 @@ export abstract class Enemy {
     this.sprite.setVelocityX(0);
   }
 
-  // Comportamento específico de cada tipo de inimigo (chase, ranged, ...).
   protected abstract updateBehavior(delta: number, targetX: number, targetY: number): void;
+
+  private flashHit() {
+    // Phaser 4: flash sólido = setTint + modo FILL (substitui o antigo setTintFill).
+    this.sprite.setTint(HIT_FLASH_COLOR).setTintMode(Phaser.TintModes.FILL);
+    this.scene.time.delayedCall(ENEMY_FX.HIT_FLASH_DURATION_MS, () => {
+      if (this.sprite.active) {
+        this.sprite.clearTint();
+      }
+    });
+  }
+
+  private die() {
+    this.setState('dying');
+    this.sprite.setVelocity(0, 0);
+    this.sprite.setStatic(true);
+    this.sprite.clearTint();
+    this.healthBarBg.setVisible(false);
+    this.healthBarFill.setVisible(false);
+    // Corpo some após DEATH_FADE_MS (RF04: "corpo que some em 2s").
+    this.scene.tweens.add({
+      targets: this.sprite,
+      alpha: 0,
+      duration: ENEMY_FX.DEATH_FADE_MS,
+      onComplete: () => {
+        this.finished = true;
+        this.destroy();
+      },
+    });
+  }
+
+  private updateHealthBar() {
+    const showBar = !this.isDead && this.currentHealth < this.config.health;
+    this.healthBarBg.setVisible(showBar);
+    this.healthBarFill.setVisible(showBar);
+    if (!showBar) {
+      return;
+    }
+    const left = this.sprite.x - ENEMY_FX.HEALTH_BAR_WIDTH / 2;
+    const top = this.sprite.y - ENEMY_FX.HEALTH_BAR_OFFSET_Y;
+    this.healthBarBg.setPosition(left, top);
+    this.healthBarFill.setPosition(left, top);
+    this.healthBarFill.setScale(healthRatio(this.currentHealth, this.config.health), 1);
+  }
 }

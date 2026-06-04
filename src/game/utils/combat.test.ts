@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyDamage, isDefeated } from './combat.ts';
+import { applyDamage, isDefeated, healthRatio } from './combat.ts';
 
 describe('applyDamage', () => {
   it('subtracts the damage from current health', () => {
@@ -26,5 +26,24 @@ describe('isDefeated', () => {
 
   it('is false with remaining health', () => {
     expect(isDefeated(1)).toBe(false);
+  });
+});
+
+describe('healthRatio', () => {
+  it('is 1 at full health', () => {
+    expect(healthRatio(60, 60)).toBe(1);
+  });
+
+  it('is 0.5 at half health', () => {
+    expect(healthRatio(30, 60)).toBe(0.5);
+  });
+
+  it('clamps to 0 at or below zero', () => {
+    expect(healthRatio(0, 60)).toBe(0);
+    expect(healthRatio(-10, 60)).toBe(0);
+  });
+
+  it('guards against a zero max', () => {
+    expect(healthRatio(10, 0)).toBe(0);
   });
 });

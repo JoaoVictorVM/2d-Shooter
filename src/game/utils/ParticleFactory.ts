@@ -7,7 +7,7 @@
  */
 import * as Phaser from 'phaser';
 import { TEXTURE } from '@/game/config/assets.ts';
-import { DUST_PARTICLE, HIT_SPARK } from '@/game/config/constants.ts';
+import { DUST_PARTICLE, HIT_SPARK, BLOOD_PARTICLE } from '@/game/config/constants.ts';
 
 export function createDustEmitter(
   scene: Phaser.Scene
@@ -34,5 +34,19 @@ export function createSparkEmitter(
     angle: { min: 0, max: 360 },
     emitting: false,
     maxAliveParticles: HIT_SPARK.MAX_PARTICLES,
+  });
+}
+
+export function createBloodEmitter(
+  scene: Phaser.Scene
+): Phaser.GameObjects.Particles.ParticleEmitter {
+  return scene.add.particles(0, 0, TEXTURE.PARTICLE_BLOOD, {
+    lifespan: BLOOD_PARTICLE.LIFESPAN_MS,
+    speed: { min: BLOOD_PARTICLE.SPEED_MIN, max: BLOOD_PARTICLE.SPEED_MAX },
+    scale: { start: BLOOD_PARTICLE.SCALE_START, end: BLOOD_PARTICLE.SCALE_END },
+    alpha: { start: 1, end: 0 },
+    angle: { min: 0, max: 360 },
+    emitting: false,
+    maxAliveParticles: BLOOD_PARTICLE.MAX_PARTICLES,
   });
 }

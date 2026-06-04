@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { SCENE } from '@/game/config/scenes.ts';
-import { GAME, POOL, HIT_SPARK } from '@/game/config/constants.ts';
+import { GAME, POOL, HIT_SPARK, BLOOD_PARTICLE } from '@/game/config/constants.ts';
 import { TEXTURE, PLACEHOLDER_TEXTURES } from '@/game/config/assets.ts';
 import { WEAPONS } from '@/game/config/weapons.ts';
 import { Player } from '@/game/entities/Player.ts';
@@ -10,7 +10,7 @@ import { Shooter } from '@/game/entities/Shooter.ts';
 import type { ProjectileConfig } from '@/types/index.ts';
 import { WeaponSystem } from '@/game/systems/WeaponSystem.ts';
 import { ObjectPool } from '@/game/utils/ObjectPool.ts';
-import { createSparkEmitter } from '@/game/utils/ParticleFactory.ts';
+import { createSparkEmitter, createBloodEmitter } from '@/game/utils/ParticleFactory.ts';
 import { useGameStore } from '@/store/index.ts';
 
 export class MainGameScene extends Phaser.Scene {
@@ -18,6 +18,7 @@ export class MainGameScene extends Phaser.Scene {
   private projectiles!: ObjectPool<Projectile>;
   private enemyProjectiles!: ObjectPool<Projectile>;
   private hitSparks!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private bloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private weaponSystem!: WeaponSystem;
   private reloadKey!: Phaser.Input.Keyboard.Key;
   // Preenchida pelo WaveSystem (Sprint 8); o loop de update já vive aqui.
@@ -34,6 +35,7 @@ export class MainGameScene extends Phaser.Scene {
     this.projectiles = new ObjectPool(POOL.PROJECTILES, () => new Projectile(this));
     this.enemyProjectiles = new ObjectPool(POOL.PROJECTILES, () => new Projectile(this));
     this.hitSparks = createSparkEmitter(this);
+    this.bloodEmitter = createBloodEmitter(this);
     this.weaponSystem = new WeaponSystem(WEAPONS[useGameStore.getState().selectedWeapon]);
 
     this.reloadKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -89,6 +91,47 @@ export class MainGameScene extends Phaser.Scene {
         this.enemyProjectiles.release(projectile);
       }
     });
+
+    this.checkProjectileHits();
+    this.removeFinishedEnemies();
+  }
+
+  // Colisão por overlap: projéteis do player x inimigos (RF04).
+  private checkProjectileHits() {
+    this.projectiles.forEachActive((projectile) => {
+      const projectileBounds = projectile.sprite.getBounds();
+      for (const enemy of this.enemies) {
+        if (enemy.isDead) {
+          continue;
+        }
+        if (!Phaser.Geom.Intersects.RectangleToRectangle(projectileBounds, enemy.sprite.getBounds())) {
+          continue;
+        }
+        this.emitHitSparks(projectile.sprite.x, projectile.sprite.y);
+        enemy.takeDamage(projectile.damage);
+        if (enemy.isDead) {
+          useGameStore.getState().addScore(enemy.scoreValue);
+          this.emitBlood(enemy.sprite.x, enemy.sprite.y);
+        }
+        if (!projectile.piercing) {
+          projectile.deactivate();
+          this.projectiles.release(projectile);
+        }
+        break;
+      }
+    });
+  }
+
+  private removeFinishedEnemies() {
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      if (this.enemies[i].isFinished) {
+        this.enemies.splice(i, 1);
+      }
+    }
+  }
+
+  private emitBlood(x: number, y: number) {
+    this.bloodEmitter.explode(BLOOD_PARTICLE.COUNT, x, y);
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {

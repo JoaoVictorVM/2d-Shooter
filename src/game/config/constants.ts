@@ -125,6 +125,25 @@ export const ENEMY = {
   RANGED_TOLERANCE: 30,
 } as const;
 
+export const ENEMY_FX = {
+  HIT_FLASH_DURATION_MS: 70,
+  DEATH_FADE_MS: 2000,
+  HEALTH_BAR_WIDTH: 36,
+  HEALTH_BAR_HEIGHT: 5,
+  HEALTH_BAR_OFFSET_Y: 34,
+  HEALTH_BAR_DEPTH: 5,
+} as const;
+
+export const BLOOD_PARTICLE = {
+  LIFESPAN_MS: 500,
+  SPEED_MIN: 60,
+  SPEED_MAX: 200,
+  COUNT: 10,
+  SCALE_START: 1,
+  SCALE_END: 0,
+  MAX_PARTICLES: 40,
+} as const;
+
 export const POOL = {
   PROJECTILES: 50,
   PARTICLES_MAX: 50,
