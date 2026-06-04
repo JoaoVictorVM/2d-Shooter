@@ -15,6 +15,7 @@ export class MainGameScene extends Phaser.Scene {
   private projectiles!: ObjectPool<Projectile>;
   private hitSparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private weaponSystem!: WeaponSystem;
+  private reloadKey!: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super(SCENE.MAIN_GAME);
@@ -28,6 +29,7 @@ export class MainGameScene extends Phaser.Scene {
     this.hitSparks = createSparkEmitter(this);
     this.weaponSystem = new WeaponSystem(WEAPONS[useGameStore.getState().selectedWeapon]);
 
+    this.reloadKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.input.on('pointerdown', this.handlePointerDown, this);
   }
 
@@ -37,11 +39,17 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    const now = this.time.now;
     this.player.update(delta);
+
+    if (Phaser.Input.Keyboard.JustDown(this.reloadKey)) {
+      this.weaponSystem.startReload(now);
+    }
+    this.weaponSystem.update(now);
 
     // Modo auto: dispara continuamente enquanto o botão esquerdo está pressionado.
     if (this.weaponSystem.fireMode === 'auto' && this.input.activePointer.leftButtonDown()) {
-      this.attemptFire();
+      this.shootIfReady(now);
     }
 
     this.projectiles.forEachActive((projectile) => {
@@ -52,25 +60,34 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
-    // Modo semi: um tiro por clique (a cadência ainda limita cliques rápidos).
-    if (pointer.leftButtonDown() && this.weaponSystem.fireMode === 'semi') {
-      this.attemptFire();
+    if (!pointer.leftButtonDown() || this.weaponSystem.fireMode !== 'semi') {
+      return;
+    }
+    const now = this.time.now;
+    if (!this.shootIfReady(now) && this.weaponSystem.isMagazineEmpty) {
+      // Carregador vazio: o SFX de empty é plugado no AudioSystem (Sprint 11).
+      this.onEmptyFire();
     }
   }
 
-  private attemptFire() {
-    const now = this.time.now;
+  // Dispara se houver munição/cadência/projétil disponíveis; retorna se atirou.
+  private shootIfReady(now: number): boolean {
     if (!this.weaponSystem.canFire(now)) {
-      return;
+      return false;
     }
     const projectile = this.projectiles.acquire();
     if (!projectile) {
-      return;
+      return false;
     }
     this.weaponSystem.registerShot(now);
     const muzzle = this.player.getMuzzlePosition();
     projectile.fire(muzzle.x, muzzle.y, this.player.aimAngle, this.weaponSystem.projectile);
     this.player.triggerShootFeedback(this.weaponSystem.recoilAngle);
+    return true;
+  }
+
+  private onEmptyFire() {
+    // Ponto de gancho para o SFX de carregador vazio (Sprint 11, AudioSystem).
   }
 
   private createTemporaryGround() {

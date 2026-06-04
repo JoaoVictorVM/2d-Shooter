@@ -68,12 +68,72 @@ describe('WeaponSystem', () => {
   it('cannot fire with an empty magazine', () => {
     const system = new WeaponSystem(config);
     let now = 0;
-    for (let i = 0; i < config.magazineSize; i++) {
-      expect(system.canFire(now)).toBe(true);
+    for (let i = 0; i < config.magazineSize - 1; i++) {
       system.registerShot(now);
       now += config.fireRate;
     }
+    system.registerShot(now); // último tiro esvazia e dispara auto-reload
     expect(system.magazineAmmoCount).toBe(0);
+    expect(system.isMagazineEmpty).toBe(true);
     expect(system.canFire(now)).toBe(false);
+  });
+
+  it('reloads manually after the reload time, refilling from the reserve', () => {
+    const system = new WeaponSystem(config);
+    system.registerShot(0); // magazine 11
+    system.startReload(1000);
+    expect(system.isReloading).toBe(true);
+    expect(system.canFire(1000)).toBe(false);
+
+    system.update(1000 + config.reloadTime - 1);
+    expect(system.isReloading).toBe(true);
+
+    system.update(1000 + config.reloadTime);
+    expect(system.isReloading).toBe(false);
+    expect(system.magazineAmmoCount).toBe(12);
+    expect(system.reserveAmmoCount).toBe(95); // repôs 1 munição
+  });
+
+  it('auto-reloads when the magazine empties', () => {
+    const system = new WeaponSystem(config);
+    let now = 0;
+    for (let i = 0; i < config.magazineSize; i++) {
+      system.registerShot(now);
+      now += config.fireRate;
+    }
+    expect(system.isReloading).toBe(true);
+    system.update(now + config.reloadTime);
+    expect(system.magazineAmmoCount).toBe(12);
+    expect(system.reserveAmmoCount).toBe(84); // 96 - 12
+  });
+
+  it('publishes reload state and progress to the store', () => {
+    const system = new WeaponSystem(config);
+    system.registerShot(0);
+    system.startReload(0);
+    system.update(config.reloadTime / 2);
+    let state = useWeaponStore.getState();
+    expect(state.isReloading).toBe(true);
+    expect(state.reloadProgress).toBeCloseTo(0.5);
+
+    system.update(config.reloadTime);
+    state = useWeaponStore.getState();
+    expect(state.isReloading).toBe(false);
+    expect(state.reloadProgress).toBe(0);
+  });
+
+  it('does not reload when the magazine is already full', () => {
+    const system = new WeaponSystem(config);
+    system.startReload(0);
+    expect(system.isReloading).toBe(false);
+  });
+
+  it('treats a reserve of -1 as infinite ammo', () => {
+    const system = new WeaponSystem({ ...config, totalAmmo: -1 });
+    system.registerShot(0);
+    system.startReload(10);
+    system.update(10 + config.reloadTime);
+    expect(system.magazineAmmoCount).toBe(12);
+    expect(system.reserveAmmoCount).toBe(-1);
   });
 });
