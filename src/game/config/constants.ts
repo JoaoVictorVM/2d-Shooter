@@ -118,6 +118,11 @@ export const BOSS = {
   PHASE_TWO_HEALTH_THRESHOLD: 0.5,
 } as const;
 
+export const ENEMY = {
+  // tunável: distância de contato em que o inimigo melee passa a "atacar".
+  MELEE_ATTACK_RANGE: 40,
+} as const;
+
 export const POOL = {
   PROJECTILES: 50,
   PARTICLES_MAX: 50,

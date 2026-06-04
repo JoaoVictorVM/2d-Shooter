@@ -5,6 +5,7 @@ import { TEXTURE, PLACEHOLDER_TEXTURES } from '@/game/config/assets.ts';
 import { WEAPONS } from '@/game/config/weapons.ts';
 import { Player } from '@/game/entities/Player.ts';
 import { Projectile } from '@/game/entities/Projectile.ts';
+import type { Enemy } from '@/game/entities/Enemy.ts';
 import { WeaponSystem } from '@/game/systems/WeaponSystem.ts';
 import { ObjectPool } from '@/game/utils/ObjectPool.ts';
 import { createSparkEmitter } from '@/game/utils/ParticleFactory.ts';
@@ -16,6 +17,8 @@ export class MainGameScene extends Phaser.Scene {
   private hitSparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private weaponSystem!: WeaponSystem;
   private reloadKey!: Phaser.Input.Keyboard.Key;
+  // Preenchida pelo WaveSystem (Sprint 8); o loop de update já vive aqui.
+  readonly enemies: Enemy[] = [];
 
   constructor() {
     super(SCENE.MAIN_GAME);
@@ -46,6 +49,9 @@ export class MainGameScene extends Phaser.Scene {
       this.weaponSystem.startReload(now);
     }
     this.weaponSystem.update(now);
+
+    const { x: playerX, y: playerY } = this.player.sprite;
+    this.enemies.forEach((enemy) => enemy.update(delta, playerX, playerY));
 
     // Modo auto: dispara continuamente enquanto o botão esquerdo está pressionado.
     if (this.weaponSystem.fireMode === 'auto' && this.input.activePointer.leftButtonDown()) {

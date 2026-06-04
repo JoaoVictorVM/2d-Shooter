@@ -7,6 +7,7 @@
  *   WaveSystem (Sprint 8); aqui só existe a entidade.
  */
 import * as Phaser from 'phaser';
+import { GAME } from '@/game/config/constants.ts';
 import { applyDamage, isDefeated } from '@/game/utils/combat.ts';
 import type { TextureKey } from '@/game/config/assets.ts';
 import type { EnemyConfig, EnemyState } from '@/types/index.ts';
@@ -71,6 +72,18 @@ export abstract class Enemy {
 
   protected setState(state: EnemyState) {
     this.currentState = state;
+  }
+
+  // Movimento horizontal em px/s convertido para a unidade do Matter (px por step).
+  protected moveHorizontally(direction: number, speed: number) {
+    this.sprite.setVelocityX((direction * speed) / GAME.TARGET_FPS);
+    if (direction !== 0) {
+      this.sprite.setFlipX(direction < 0);
+    }
+  }
+
+  protected stopHorizontal() {
+    this.sprite.setVelocityX(0);
   }
 
   // Comportamento específico de cada tipo de inimigo (chase, ranged, ...).
