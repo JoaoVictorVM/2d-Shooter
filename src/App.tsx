@@ -1,5 +1,6 @@
 import { useGameStore } from './store/index.ts';
 import { GameCanvas } from './components/GameCanvas.tsx';
+import { Hud } from './components/hud/Hud.tsx';
 import { MenuScreen } from './components/screens/MenuScreen.tsx';
 import { WeaponSelectScreen } from './components/screens/WeaponSelectScreen.tsx';
 import { GameOverScreen } from './components/screens/GameOverScreen.tsx';
@@ -14,7 +15,12 @@ function App() {
     case 'weaponSelect':
       return <WeaponSelectScreen />;
     case 'game':
-      return <GameCanvas />;
+      return (
+        <div className="game-view">
+          <GameCanvas />
+          <Hud />
+        </div>
+      );
     case 'gameOver':
       return <GameOverScreen />;
     case 'victory':

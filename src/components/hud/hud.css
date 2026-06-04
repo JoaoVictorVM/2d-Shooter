@@ -1,0 +1,49 @@
+.hud {
+  /* fixed ancora no viewport: robusto a variações de altura do container do canvas. */
+  position: fixed;
+  inset: 0;
+  /* O overlay não deve capturar cliques — o tiro precisa chegar ao canvas. */
+  pointer-events: none;
+  font-family: 'Courier New', Courier, monospace;
+  color: #e6e6e6;
+  user-select: none;
+}
+
+.hud__bottom-right {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  text-align: right;
+}
+
+.ammo__counts {
+  font-size: 28px;
+  letter-spacing: 2px;
+}
+
+.ammo__sep {
+  margin: 0 4px;
+  color: #8b9bb4;
+}
+
+.ammo__reserve {
+  color: #8b9bb4;
+  font-size: 20px;
+}
+
+.ammo__reload {
+  width: 120px;
+  height: 6px;
+  margin-top: 6px;
+  margin-left: auto;
+  background: #1b2733;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ammo__reload-fill {
+  height: 100%;
+  background: #4ade80;
+  border-radius: 3px;
+  transition: width 0.05s linear;
+}
