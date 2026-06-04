@@ -6,6 +6,8 @@ import { WEAPONS } from '@/game/config/weapons.ts';
 import { Player } from '@/game/entities/Player.ts';
 import { Projectile } from '@/game/entities/Projectile.ts';
 import type { Enemy } from '@/game/entities/Enemy.ts';
+import { Shooter } from '@/game/entities/Shooter.ts';
+import type { ProjectileConfig } from '@/types/index.ts';
 import { WeaponSystem } from '@/game/systems/WeaponSystem.ts';
 import { ObjectPool } from '@/game/utils/ObjectPool.ts';
 import { createSparkEmitter } from '@/game/utils/ParticleFactory.ts';
@@ -14,6 +16,7 @@ import { useGameStore } from '@/store/index.ts';
 export class MainGameScene extends Phaser.Scene {
   private player!: Player;
   private projectiles!: ObjectPool<Projectile>;
+  private enemyProjectiles!: ObjectPool<Projectile>;
   private hitSparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private weaponSystem!: WeaponSystem;
   private reloadKey!: Phaser.Input.Keyboard.Key;
@@ -29,6 +32,7 @@ export class MainGameScene extends Phaser.Scene {
     // Spawn no centro do mapa, acima do chão (RF09).
     this.player = new Player(this, GAME.WIDTH / 2, GAME.HEIGHT / 2);
     this.projectiles = new ObjectPool(POOL.PROJECTILES, () => new Projectile(this));
+    this.enemyProjectiles = new ObjectPool(POOL.PROJECTILES, () => new Projectile(this));
     this.hitSparks = createSparkEmitter(this);
     this.weaponSystem = new WeaponSystem(WEAPONS[useGameStore.getState().selectedWeapon]);
 
@@ -39,6 +43,23 @@ export class MainGameScene extends Phaser.Scene {
   // Partículas de impacto ao acertar um inimigo (acionado na colisão do Sprint 7).
   emitHitSparks(x: number, y: number) {
     this.hitSparks.explode(HIT_SPARK.COUNT, x, y);
+  }
+
+  // Spawn de inimigo ranged já com o callback de disparo conectado ao pool de inimigos.
+  // O WaveSystem (Sprint 8) usará este helper.
+  spawnShooter(x: number, y: number): Shooter {
+    const shooter = new Shooter(this, x, y, (px, py, angle, config) =>
+      this.spawnEnemyProjectile(px, py, angle, config)
+    );
+    this.enemies.push(shooter);
+    return shooter;
+  }
+
+  private spawnEnemyProjectile(x: number, y: number, angle: number, config: ProjectileConfig) {
+    const projectile = this.enemyProjectiles.acquire();
+    if (projectile) {
+      projectile.fire(x, y, angle, config);
+    }
   }
 
   update(_time: number, delta: number) {
@@ -61,6 +82,11 @@ export class MainGameScene extends Phaser.Scene {
     this.projectiles.forEachActive((projectile) => {
       if (!projectile.update(delta)) {
         this.projectiles.release(projectile);
+      }
+    });
+    this.enemyProjectiles.forEachActive((projectile) => {
+      if (!projectile.update(delta)) {
+        this.enemyProjectiles.release(projectile);
       }
     });
   }

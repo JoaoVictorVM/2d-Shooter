@@ -121,6 +121,8 @@ export const BOSS = {
 export const ENEMY = {
   // tunável: distância de contato em que o inimigo melee passa a "atacar".
   MELEE_ATTACK_RANGE: 40,
+  // tunável: meia-largura da banda em torno de preferredRange onde o ranged para e atira.
+  RANGED_TOLERANCE: 30,
 } as const;
 
 export const POOL = {

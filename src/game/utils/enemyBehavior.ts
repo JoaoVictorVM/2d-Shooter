@@ -25,3 +25,36 @@ export function decideChaseIntent(
   }
   return { state: 'chasing', moveDirection: Math.sign(dx) };
 }
+
+export interface RangedIntent {
+  state: EnemyState;
+  moveDirection: number;
+  wantsToShoot: boolean;
+}
+
+/**
+ * Decide estado/movimento/tiro de um inimigo ranged (RF04):
+ * - fora do alcance de detecção → idle
+ * - mais longe que preferredRange (+tolerância) → aproxima (sem atirar)
+ * - mais perto que preferredRange (−tolerância) → recua, atirando
+ * - dentro da banda em torno de preferredRange → para e atira
+ */
+export function decideRangedIntent(
+  dx: number,
+  distance: number,
+  detectionRange: number,
+  preferredRange: number,
+  tolerance: number
+): RangedIntent {
+  if (distance > detectionRange) {
+    return { state: 'idle', moveDirection: 0, wantsToShoot: false };
+  }
+  const toTarget = Math.sign(dx);
+  if (distance > preferredRange + tolerance) {
+    return { state: 'chasing', moveDirection: toTarget, wantsToShoot: false };
+  }
+  if (distance < preferredRange - tolerance) {
+    return { state: 'attacking', moveDirection: -toTarget, wantsToShoot: true };
+  }
+  return { state: 'attacking', moveDirection: 0, wantsToShoot: true };
+}
